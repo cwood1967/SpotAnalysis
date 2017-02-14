@@ -61,7 +61,7 @@ public class Spot  {
     }
 
     public Spot(int id, int x, int y, ImageProcessor ip, int patchSize, int theC, int theZ) {
-        //theZ and theC are one based for image j
+        //theZ and theC are one based for imagej
         this.id = id;
         this.x = x;
         this.y = y;
@@ -156,6 +156,7 @@ public class Spot  {
     public double[] fitPatch() {
 
         if (!canfit) {
+            System.out.println("Can't fit" + x + " " + y);
             return null;
         }
 

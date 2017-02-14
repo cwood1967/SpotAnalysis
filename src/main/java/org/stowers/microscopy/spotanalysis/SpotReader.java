@@ -25,6 +25,8 @@ public class SpotReader implements IReader {
     int stackSize;
     double pixelWidth = 1;
     int patchSize = 11;
+    int currentSlice;
+    
     AutoThresholder.Method method = null;
 
     double tol;  //the noise tolerance for the maximum finder
@@ -45,6 +47,7 @@ public class SpotReader implements IReader {
         nz = imp.getNSlices();
         nc = imp.getNChannels();
         stackSize = imp.getStackSize();
+        int currentSlice = imp.getCurrentSlice()
     }
 
     public SpotReader(ImagePlus imp, AutoThresholder.Method method) {
