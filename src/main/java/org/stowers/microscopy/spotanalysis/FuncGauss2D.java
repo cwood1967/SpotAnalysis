@@ -55,6 +55,9 @@ public class FuncGauss2D implements MultivariateJacobianFunction {
             for (int j = 0; j < p.getDimension(); j++) {
                 double pj = tp[j];
                 double dp = 0.1*pj;
+                if (dp < .00001) {
+                    dp = .00001;
+                }
                 double u1 = pj - dp;
                 double u2 = pj + dp;
                 tp[j] = u1;

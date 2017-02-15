@@ -222,7 +222,8 @@ public class Spot  {
             pres = optimum.getPoint().toArray();
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            System.out.println("Trouble fitting: " + x + " " + y);
         }
 
 

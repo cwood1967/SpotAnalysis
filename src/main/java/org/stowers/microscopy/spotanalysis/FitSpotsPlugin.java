@@ -69,13 +69,19 @@ public class FitSpotsPlugin implements Command, Previewable {
                     .forEach(sp -> sp.fitPatch());
             fs = spots.parallelStream()
                     .filter(sp -> sp.getFitResult() != null)
-                    .filter(sp -> sp.getFitResult()[3] > 0.05)
-                    .filter(sp -> sp.getFitResult()[3] < 10.)
+                    .filter(sp -> sp.getFitResult()[3] > .001)
+                    .filter(sp -> sp.getFitResult()[3] < 1000.)
                     .collect(Collectors.toList());
 
             System.out.println("--N " + spots.size());
             System.out.println("--N " + fs.size());
 
+            List<Spot> notfit = spots.parallelStream()
+                    .filter(sp -> sp.getFitResult() == null)
+                    .collect(Collectors.toList());
+
+            System.out.println("No Fit: " + notfit.size());
+            System.out.println("No Fit: " + spots.size());
         }
 
         ResultsTable table = makeTable(fs);

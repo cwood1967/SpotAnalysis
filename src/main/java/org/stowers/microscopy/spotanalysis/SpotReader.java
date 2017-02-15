@@ -26,7 +26,7 @@ public class SpotReader implements IReader {
     double pixelWidth = 1;
     int patchSize = 11;
     int currentSlice;
-    
+
     AutoThresholder.Method method = null;
 
     double tol;  //the noise tolerance for the maximum finder
@@ -47,7 +47,7 @@ public class SpotReader implements IReader {
         nz = imp.getNSlices();
         nc = imp.getNChannels();
         stackSize = imp.getStackSize();
-        int currentSlice = imp.getCurrentSlice()
+        currentSlice = imp.getCurrentSlice();
     }
 
     public SpotReader(ImagePlus imp, AutoThresholder.Method method) {
@@ -72,35 +72,35 @@ public class SpotReader implements IReader {
         spotsMap = new HashMap<>();
 
         ArrayList<Integer> mapkey;
-        for (int i = 0; i < stackSize; i++) {
+        // only do the current slice
+//        for (int i = 0; i < stackSize; i++) {
             // remember that imagej uses base 1 - so add one to indices
 
-            ImageProcessor oip = imp.getStack().getProcessor(i + 1);
-            int theC = i % nc + 1;
-            int theZ = i / nc + 1;
+        ImageProcessor oip = imp.getStack().getProcessor(currentSlice);
+        int theC = imp.getChannel();
+        int theZ = imp.getSlice();
 
-            // single points, 0; marked points 3
+        // single points, 0; marked points 3
 
-            //get the threshold by the given method
-            double stol = tol;
-            if (method != null ) {
-                oip.setAutoThreshold(method, true);
-                stol = oip.getMinThreshold();
+        //get the threshold by the given method
+        double stol = tol;
+        if (method != null ) {
+            oip.setAutoThreshold(method, true);
+            stol = oip.getMinThreshold();
 //                System.out.println(theC + " " + theZ + " " + stol);
-            }
-
-            oip.setRoi(roi);
-            oip.setMask(roiMask);
-            ByteProcessor mfip = maxFinder.findMaxima(oip, stol, 0, false);
-            spots = imageToSpots(mfip, id, theC, theZ);
-            mapkey = new ArrayList<Integer>();
-            mapkey.add(theC);
-            mapkey.add(theZ);
-            spotsMap.put(mapkey, spots);
-//            System.out.println(spots.size());
-            id++;
-
         }
+
+        oip.setRoi(roi);
+//        oip.setMask(roiMask);
+        ByteProcessor mfip = maxFinder.findMaxima(oip, stol, 0, false);
+        spots = imageToSpots(mfip, id, theC, theZ);
+        mapkey = new ArrayList<Integer>();
+        mapkey.add(theC);
+        mapkey.add(theZ);
+        spotsMap.put(mapkey, spots);
+//            System.out.println(spots.size());
+        id++;
+
     }
 
     public Spot spotFromCoordinates(int x, int y, int size, int theC, int theZ) {
