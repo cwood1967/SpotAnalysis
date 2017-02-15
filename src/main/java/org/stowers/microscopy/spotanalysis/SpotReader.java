@@ -30,8 +30,9 @@ public class SpotReader implements IReader {
     AutoThresholder.Method method = null;
 
     double tol;  //the noise tolerance for the maximum finder
-    HashMap<ArrayList<Integer>, ArrayList<Spot>> spotsMap;
+    HashMap<Integer, ArrayList<Spot>> spotsMap;
 
+    ArrayList<Spot> spotList;
     public void setPixelWidth(double pw) {
         pixelWidth = pw;
     }
@@ -69,9 +70,9 @@ public class SpotReader implements IReader {
         int id = 0;
 
         ArrayList<Spot> spots = null;
-        spotsMap = new HashMap<>();
+//        spotsMap = new HashMap<>();
 
-        ArrayList<Integer> mapkey;
+//        int mapkey;
         // only do the current slice
 //        for (int i = 0; i < stackSize; i++) {
             // remember that imagej uses base 1 - so add one to indices
@@ -94,10 +95,11 @@ public class SpotReader implements IReader {
 //        oip.setMask(roiMask);
         ByteProcessor mfip = maxFinder.findMaxima(oip, stol, 0, false);
         spots = imageToSpots(mfip, id, theC, theZ);
-        mapkey = new ArrayList<Integer>();
-        mapkey.add(theC);
-        mapkey.add(theZ);
-        spotsMap.put(mapkey, spots);
+//        mapkey = key;
+//        mapkey.add(theC);
+//        mapkey.add(theZ);
+//        spotsMap.put(mapkey, spots);
+        spotList = spots;
 //            System.out.println(spots.size());
         id++;
 
@@ -128,8 +130,13 @@ public class SpotReader implements IReader {
         return spots;
     }
 
-    public  HashMap<ArrayList<Integer>, ArrayList<Spot>> getSpotsMap() {
+    public  HashMap<Integer, ArrayList<Spot>> getSpotsMap() {
         return spotsMap;
+    }
+
+    @Override
+    public ArrayList<Spot> getSpotList() {
+        return spotList;
     }
 
     @Override

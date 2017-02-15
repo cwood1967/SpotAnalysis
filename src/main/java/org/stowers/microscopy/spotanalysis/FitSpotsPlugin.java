@@ -43,6 +43,7 @@ public class FitSpotsPlugin implements Command, Previewable {
     @Override
     public void run() {
 
+
         Roi roi = imp.getRoi();
         if (roi != null) {
             imp.saveRoi();
@@ -146,20 +147,20 @@ public class FitSpotsPlugin implements Command, Previewable {
 
         final ImageJ imagej = net.imagej.Main.launch(args);
 
-        String name = "/Volumes/projects/omxworx/RUH/20160519/Hela_RBM3_27c_01_SIR_PRJ.dv";
-        ImagePlus imp = null;
-        try {
-            ImagePlus[] imps = BF.openImagePlus(name);
-            imp = imps[0];
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-
-//        Object i1 = imagej.io().open(name);
-        Opener o = new Opener();
-//        ImagePlus i1 = o.openImage(name);
-        imp.show();
+//        String name = "/Volumes/projects/omxworx/RUH/20160519/Hela_RBM3_27c_01_SIR_PRJ.dv";
+//        ImagePlus imp = null;
+//        try {
+//            ImagePlus[] imps = BF.openImagePlus(name);
+//            imp = imps[0];
+//        }
+//        catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//
+////        Object i1 = imagej.io().open(name);
+//        Opener o = new Opener();
+////        ImagePlus i1 = o.openImage(name);
+//        imp.show();
 //        imagej.ui().show(i1);
         //imagej.command().run(RnaFishPlugin.class, true);
 
