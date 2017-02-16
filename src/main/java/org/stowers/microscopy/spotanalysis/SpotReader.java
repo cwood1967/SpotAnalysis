@@ -2,9 +2,11 @@ package org.stowers.microscopy.spotanalysis;
 
 import ij.ImagePlus;
 import ij.gui.Roi;
+import ij.plugin.filter.GaussianBlur;
 import ij.plugin.filter.MaximumFinder;
 import ij.process.AutoThresholder;
 import ij.process.ByteProcessor;
+import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 
 import java.util.ArrayList;
@@ -27,6 +29,8 @@ public class SpotReader implements IReader {
     int patchSize = 11;
     int currentSlice;
 
+    int theZ;
+    String imageFile;
     AutoThresholder.Method method = null;
 
     double tol;  //the noise tolerance for the maximum finder
@@ -35,6 +39,14 @@ public class SpotReader implements IReader {
     ArrayList<Spot> spotList;
     public void setPixelWidth(double pw) {
         pixelWidth = pw;
+    }
+
+    public SpotReader(ImagePlus imp, double tol, int patchSize, String imageFile, int theZ) {
+
+        this(imp, tol, patchSize);
+        this.imageFile = imageFile;
+        this.theZ = theZ;
+
     }
 
     public SpotReader(ImagePlus imp, double tol, int patchSize) {
@@ -67,41 +79,31 @@ public class SpotReader implements IReader {
 
     public void analyze() {
         MaximumFinder maxFinder = new MaximumFinder();
-        int id = 0;
 
         ArrayList<Spot> spots = null;
-//        spotsMap = new HashMap<>();
 
-//        int mapkey;
-        // only do the current slice
-//        for (int i = 0; i < stackSize; i++) {
-            // remember that imagej uses base 1 - so add one to indices
+        FloatProcessor bip = (FloatProcessor)imp.getProcessor().duplicate();
 
-        ImageProcessor oip = imp.getStack().getProcessor(currentSlice);
+        GaussianBlur blur = new GaussianBlur();
+        blur.blurFloat(bip, .5, .5, 0.0002);
+
+//        ImageProcessor oip = imp.getStack().getProcessor(currentSlice);
         int theC = imp.getChannel();
         int theZ = imp.getSlice();
 
-        // single points, 0; marked points 3
-
-        //get the threshold by the given method
         double stol = tol;
         if (method != null ) {
-            oip.setAutoThreshold(method, true);
-            stol = oip.getMinThreshold();
+            bip.setAutoThreshold(method, true);
+            stol = bip.getMinThreshold();
 //                System.out.println(theC + " " + theZ + " " + stol);
         }
 
-        oip.setRoi(roi);
-//        oip.setMask(roiMask);
-        ByteProcessor mfip = maxFinder.findMaxima(oip, stol, 0, false);
-        spots = imageToSpots(mfip, id, theC, theZ);
-//        mapkey = key;
-//        mapkey.add(theC);
-//        mapkey.add(theZ);
-//        spotsMap.put(mapkey, spots);
+//        oip.setRoi(roi);
+        bip.setMask(roiMask);
+        ByteProcessor mfip = maxFinder.findMaxima(bip, stol, 0, false);
+        spots = imageToSpots(mfip, 0, theC, theZ);
+
         spotList = spots;
-//            System.out.println(spots.size());
-        id++;
 
     }
 
@@ -124,9 +126,7 @@ public class SpotReader implements IReader {
                 spot.setPixelWidth(pixelWidth);
                 spots.add(spot);
             }
-
         }
-
         return spots;
     }
 
@@ -134,7 +134,6 @@ public class SpotReader implements IReader {
         return spotsMap;
     }
 
-    @Override
     public ArrayList<Spot> getSpotList() {
         return spotList;
     }

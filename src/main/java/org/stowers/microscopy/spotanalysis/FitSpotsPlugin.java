@@ -51,9 +51,9 @@ public class FitSpotsPlugin implements Command, Previewable {
         SpotReader reader = new SpotReader(imp, tol, patchSize);
         reader.setPixelWidth(1);
         reader.analyze();
-        HashMap<ArrayList<Integer>, ArrayList<Spot>> spotsMap = reader.getSpotsMap();
+        ArrayList<Spot> spots = reader.getSpotList();
 
-        System.out.println(spotsMap.size());
+        System.out.println(spots.size());
 
         int nn = 0;
         int nf = 0;
@@ -64,26 +64,26 @@ public class FitSpotsPlugin implements Command, Previewable {
         double t0 = System.currentTimeMillis();
 
         List<Spot> fs = null;
-        for (ArrayList<Integer> k : spotsMap.keySet()) {
-            ArrayList<Spot> spots = spotsMap.get(k);
-            spots.parallelStream()
-                    .forEach(sp -> sp.fitPatch());
-            fs = spots.parallelStream()
-                    .filter(sp -> sp.getFitResult() != null)
-                    .filter(sp -> sp.getFitResult()[3] > .001)
-                    .filter(sp -> sp.getFitResult()[3] < 1000.)
-                    .collect(Collectors.toList());
+//        for (Integer k : spotList) {
+//            ArrayList<Spot> spots = spotsMap.get(k);
+        spots.parallelStream()
+                .forEach(sp -> sp.fitPatch());
+        fs = spots.parallelStream()
+                .filter(sp -> sp.getFitResult() != null)
+                .filter(sp -> sp.getFitResult()[3] > .001)
+                .filter(sp -> sp.getFitResult()[3] < 1000.)
+                .collect(Collectors.toList());
 
-            System.out.println("--N " + spots.size());
-            System.out.println("--N " + fs.size());
+        System.out.println("--N " + spots.size());
+        System.out.println("--N " + fs.size());
 
-            List<Spot> notfit = spots.parallelStream()
-                    .filter(sp -> sp.getFitResult() == null)
-                    .collect(Collectors.toList());
+        List<Spot> notfit = spots.parallelStream()
+                .filter(sp -> sp.getFitResult() == null)
+                .collect(Collectors.toList());
 
-            System.out.println("No Fit: " + notfit.size());
-            System.out.println("No Fit: " + spots.size());
-        }
+        System.out.println("No Fit: " + notfit.size());
+        System.out.println("No Fit: " + spots.size());
+//        }
 
         ResultsTable table = makeTable(fs);
         table.show("Gaussian Fit Results");
