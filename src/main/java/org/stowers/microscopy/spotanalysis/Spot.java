@@ -49,6 +49,7 @@ public class Spot  {
     double ycMax;
 
     double meanIntensity;
+    double intensity;
     double channel;
     double slice;
 
@@ -69,6 +70,8 @@ public class Spot  {
         this.theZ = theZ;
         this.xyindex = y*ip.getWidth() + x;
         this.ip = ip;
+
+        this.intensity = ip.get(xyindex);
 
         if ((x < patchSize/2 + 1) || (y < patchSize/2 + 1)) {
             canfit = false;
@@ -104,6 +107,10 @@ public class Spot  {
         stdDevMin = (xcMin + ycMin)/2.;
     }
 
+    public double getIntensity() {
+        return intensity;
+    }
+    
     public void makePatch() {
 
         if (patchSize <= 0) {
@@ -156,7 +163,7 @@ public class Spot  {
     public double[] fitPatch() {
 
         if (!canfit) {
-            System.out.println("Can't fit" + x + " " + y);
+//            System.out.println("Can't fit" + x + " " + y);
             return null;
         }
 
@@ -223,7 +230,7 @@ public class Spot  {
         }
         catch (Exception e) {
             //e.printStackTrace();
-            System.out.println("Trouble fitting: " + x + " " + y);
+//            System.out.println("Trouble fitting: " + x + " " + y);
         }
 
 
@@ -269,6 +276,14 @@ public class Spot  {
     }
 
     public double getY() {
+        return y;
+    }
+
+    public int getXint() {
+        return x;
+    }
+
+    public int getYint() {
         return y;
     }
 

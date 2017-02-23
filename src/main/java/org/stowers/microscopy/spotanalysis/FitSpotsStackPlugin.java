@@ -1,6 +1,5 @@
 package org.stowers.microscopy.spotanalysis;
 
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -9,11 +8,17 @@ import ij.io.Opener;
 import ij.gui.Roi;
 import ij.io.RoiEncoder;
 import ij.plugin.ChannelSplitter;
+import ij.plugin.ZProjector;
+import ij.plugin.filter.GaussianBlur;
 import ij.plugin.frame.RoiManager;
+import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
+import ij.process.AutoThresholder;
+
 import loci.common.DebugTools;
 import loci.formats.FormatException;
 import loci.plugins.BF;
+
 import net.imagej.ImageJ;
 //import net.imagej.table.DefaultResultsTable;
 //import net.imagej.table.ResultsTable;
@@ -44,6 +49,9 @@ public class FitSpotsStackPlugin implements Command, Previewable {
     @Parameter(label="Pick a directory", style="directory")
     File inputDirectory;
 
+    @Parameter(label="Pick a directory", style="directory")
+    File outputDirectory;
+
     File[] imageFiles;
 
     @Parameter(label = "Size of fit region")
@@ -64,12 +72,15 @@ public class FitSpotsStackPlugin implements Command, Previewable {
     String outpath = "/Users/cjw/Desktop/Out/";
 
     BufferedWriter writer = null;
+    AutoThresholder.Method method;
 
-
+    ArrayList<Integer> inDapiList;
 
     @Override
     public void run() {
 
+        outpath = outputDirectory.getAbsolutePath();
+        method = AutoThresholder.Method.Huang;
         DebugTools.enableIJLogging(false);
         DebugTools.enableLogging("ERROR");
 
@@ -82,7 +93,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
             roiList = new ArrayList();
             getImageFiles();
             processImageList();
-            writeRoiZip(roiList, outpath + "rois.zip");
+//            writeRoiZip(roiList, outpath + "rois.zip");
             writer.close();
         }
         catch (IOException e) {
@@ -114,7 +125,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         for (int i = 0; i < imageFiles.length; i++) {
             String filename = imageFiles[i].getAbsolutePath();
             IJ.log("Working on " + filename);
-            if (!filename.endsWith("70.ome.tiff")) continue;
+            if (!filename.endsWith("ome.tiff")) continue;
             processImage(filename);
 
         }
@@ -124,11 +135,16 @@ public class FitSpotsStackPlugin implements Command, Previewable {
     private void processImage(String filename) throws IOException {
 
         ImagePlus imp = openImage(filename);
+
+        roiList = new ArrayList<>();
+
+        ImagePlus dapiImp = getCellMask(imp);
+//        dapiImp.show();
         ImageStack fitStack = getFitChannel(imp);
 
         ImagePlus gimp = new ImagePlus("Green");
         gimp.setStack(fitStack);
-        gimp.show();
+//        gimp.show();
 
         int sizeZ = fitStack.getSize();
 
@@ -166,9 +182,14 @@ public class FitSpotsStackPlugin implements Command, Previewable {
             System.out.println("No Fit: " + notfit.size());
             System.out.println("No Fit: " + spots.size());
 
-            writeSpots(fs, filename, i);
+            writeSpots(fs, filename, i, ip);
+
             markSpots(gimp, fs, i + 1);
 
+            int lastDotPos = filename.lastIndexOf(".");
+            int lastSpace = filename.lastIndexOf(" ");
+            String numStr = filename.substring(lastSpace + 1, lastDotPos);
+            writeRoiZip(roiList, outpath + numStr + "-rois.zip");
         }
     }
 
@@ -190,6 +211,46 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         return imp;
     }
 
+
+    private ImagePlus getCellMask(ImagePlus imp) {
+
+        inDapiList = new ArrayList<>();
+        ImageStack stack = ChannelSplitter.getChannel(imp, dapiChannel);
+        ImagePlus dimp = new ImagePlus("Dapi");
+        dimp.setStack(stack);
+        ZProjector zp = new ZProjector(dimp);
+        zp.setStartSlice(1);
+        zp.setStopSlice(stack.getSize());
+        zp.setMethod(zp.SUM_METHOD);
+        zp.doHyperStackProjection(true);
+        ImagePlus projectedImp = zp.getProjection();
+
+        GaussianBlur blur = new GaussianBlur();
+        blur.blurGaussian(projectedImp.getProcessor(), 4., 4., 0.0002);
+        projectedImp.getProcessor().resetThreshold();
+        projectedImp.getProcessor().setAutoThreshold(method, true);
+
+        double thres = projectedImp.getProcessor().getMinThreshold();
+
+        float[] pixels = (float[])projectedImp.getProcessor().getPixels();
+        byte[] maskPixels = new byte[pixels.length];
+
+        for (int i = 0; i < pixels.length; i++) {
+            if (pixels[i] > thres) {
+                maskPixels[i] = (byte)(255 & 0xFF);
+                inDapiList.add(i);
+            } else {
+                maskPixels[i] = 0;
+            }
+        }
+
+        ImageProcessor maskIp = new ByteProcessor(dimp.getWidth(), dimp.getHeight());
+        maskIp.setPixels(maskPixels);
+        ImagePlus mimp = new ImagePlus("SUM Projected Dapi Mask", maskIp);
+
+        return mimp;
+    }
+
     private ImageStack getFitChannel(ImagePlus imp) {
 
         ImageStack stack = ChannelSplitter.getChannel(imp, fitChannel);
@@ -198,24 +259,41 @@ public class FitSpotsStackPlugin implements Command, Previewable {
 
     private void writeheader() throws IOException {
 
-        String header = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s\n",
+        String header = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s\n",
                                     "Filename", "Slice", "Baseline", "Amplitude","FitX",
-                                    "FitY", "StdDev", "ImageFitX", "ImageFitY", "StartX", "StartY");
+                                    "FitY", "StdDev", "ImageFitX", "ImageFitY", "StartX", "StartY", "InDapi",
+                                    "DapiSize", "CytoplasmSize");
 
         writer.write(header);
 
     }
 
-    private void writeSpots(List<Spot> spots, String filename, int slice)
+    private void writeSpots(List<Spot> spots, String filename, int slice, ImageProcessor ip)
                             throws IOException {
 
         for (Spot spot : spots) {
 
             double[] p = spot.getFitResult();
 
-            String outString = String.format("%s, %5d, %10.2f, %10.2f, %10.2f, %10.2f, %10.4f, %10.2f, %10.2f, %10.2f, %10.2f\n",
+            int x = spot.getXint();
+            int y = spot.getYint();
+            int w = ip.getWidth();
+            int h = ip.getHeight();
+            int index = y*w + x;
+
+            int inDapi;
+            if (inDapiList.contains(index)) {
+                inDapi = 1;
+            }
+            else {
+                inDapi = 0;
+//                System.out.println("Cytoplasm");
+            }
+            String outString = String.format("%s, %5d, %10.2f, %10.2f, %10.2f, %10.2f, %10.4f, %10.2f, %10.2f, " +
+                                                "%10.2f, %10.2f, %5d, %10d, %10d\n",
                                                 filename, slice, p[4], p[0], p[1], p[2], p[3], spot.getImageFitX(),
-                                                spot.getImageFitY(), spot.getX(), spot.getY());
+                                                spot.getImageFitY(), spot.getX(), spot.getY(), inDapi,
+                                                inDapiList.size(), w*h - inDapiList.size());
 
             writer.write(outString);
 
@@ -232,6 +310,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         float[] xpoints = new float[spots.size()];
         float[] ypoints = new float[spots.size()];
 
+        ArrayList<PointRoi> rois = new ArrayList<>();
         int roiIndex = 0;
         for (Spot s : spots) {
             double x = s.getX() + 0.0;
