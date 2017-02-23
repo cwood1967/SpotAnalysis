@@ -125,7 +125,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         for (int i = 0; i < imageFiles.length; i++) {
             String filename = imageFiles[i].getAbsolutePath();
             IJ.log("Working on " + filename);
-            if (!filename.endsWith("70.ome.tiff")) continue;
+            if (!filename.endsWith("ome.tiff")) continue;
             processImage(filename);
 
         }
