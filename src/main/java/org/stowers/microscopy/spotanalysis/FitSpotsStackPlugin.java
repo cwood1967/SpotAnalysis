@@ -23,6 +23,7 @@ import net.imagej.ImageJ;
 //import net.imagej.table.DefaultResultsTable;
 //import net.imagej.table.ResultsTable;
 import ij.measure.ResultsTable;
+import net.imglib2.ops.parse.token.Int;
 import org.scijava.ItemIO;
 import org.scijava.command.Command;
 import org.scijava.command.Previewable;
@@ -37,19 +38,19 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 
-
-@Plugin(type = Command.class, menuPath="Plugins>Chris>Stack Fit Spots")
+@Plugin(type = Command.class, menuPath = "Plugins>Chris>Stack Fit Spots")
 public class FitSpotsStackPlugin implements Command, Previewable {
 
-    @Parameter(label="Pick a directory", style="directory")
+    @Parameter(label = "Pick a directory", style = "directory")
     File inputDirectory;
 
-    @Parameter(label="Pick a directory", style="directory")
+    @Parameter(label = "Pick a directory", style = "directory")
     File outputDirectory;
 
     File[] imageFiles;
@@ -95,8 +96,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
             processImageList();
 //            writeRoiZip(roiList, outpath + "rois.zip");
             writer.close();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
             return;
         }
@@ -125,7 +125,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         for (int i = 0; i < imageFiles.length; i++) {
             String filename = imageFiles[i].getAbsolutePath();
             IJ.log("Working on " + filename);
-            if (!filename.endsWith("ome.tiff")) continue;
+            if (!filename.endsWith("70.ome.tiff")) continue;
             processImage(filename);
 
         }
@@ -148,19 +148,54 @@ public class FitSpotsStackPlugin implements Command, Previewable {
 
         int sizeZ = fitStack.getSize();
 
+        HashMap<Integer, ArrayList<Spot>> allSpots = new HashMap<>();
+
         for (int i = 0; i < sizeZ; i++) {
             gimp.setSlice(i + 1);
             ImageProcessor ip = fitStack.getProcessor(i + 1).convertToFloatProcessor();
             ImagePlus simp = new ImagePlus();
             simp.setProcessor(ip);
 
-            SpotReader reader = new SpotReader(simp, tol, patchSize, filename, i + 1);
+            SpotReader reader = new SpotReader(gimp, tol, patchSize, filename, i + 1);
             reader.setPixelWidth(1);
             reader.analyze();
 
             ArrayList<Spot> spots = reader.getSpotList();
-            System.out.println(spots.size());
 
+            ArrayList<Spot> removeFromSpots = new ArrayList<>();
+            ArrayList<Spot> removeFromOther;
+
+            if (i > 0) {
+                ArrayList<Spot> otherSpots = allSpots.get(i - 1);
+                System.out.println(i + " " + spots.size() + " " + otherSpots.size());
+                removeFromOther = new ArrayList<>();
+                for (Spot spot : spots) {
+
+                    for (Spot otherSpot : otherSpots) {
+                        if (canSpotReplace(spot, otherSpot)) {
+                            removeFromOther.add(otherSpot);
+                            //System.out.println("Removing: " + otherSpot.getXint() + " " + otherSpot.getYint());
+                        } else if (!canKeepSpot(spot, otherSpot)) {
+                            removeFromSpots.add(spot);
+                            //System.out.println("Removing from Spots: " + otherSpot.getXint() + " " + otherSpot.getYint());
+                        }
+                    }
+                }
+                otherSpots.removeAll(removeFromOther);
+                spots.removeAll(removeFromSpots);
+                System.out.println(i + " " + spots.size() + " " + otherSpots.size());
+            }
+
+            allSpots.put(i, spots);
+        }
+//        if (1 == 1) continue;
+
+        //do the fitting here
+        for (Map.Entry<Integer, ArrayList<Spot>> e : allSpots.entrySet()) {
+
+            ArrayList<Spot> spots = e.getValue();
+            int i = e.getKey();
+            ImageProcessor ip = fitStack.getProcessor(i + 1).convertToFloatProcessor();
             List<Spot> fs = null;
 
             spots.parallelStream()
@@ -191,6 +226,47 @@ public class FitSpotsStackPlugin implements Command, Previewable {
             String numStr = filename.substring(lastSpace + 1, lastDotPos);
             writeRoiZip(roiList, outpath + numStr + "-rois.zip");
         }
+
+        int count = 0;
+        for (Map.Entry<Integer, ArrayList<Spot>> e : allSpots.entrySet()) {
+            System.out.println(e.getKey() + " " + e.getValue().size());
+            count += e.getValue().size();
+        }
+        System.out.println(count);
+
+    }
+
+    //  if spot1 can replace spot2, then return true
+    // if true the spot2 need to be removed from the list
+    private boolean canSpotReplace(Spot spot1, Spot spot2) {
+
+        boolean res = false; //default is to keep the spot
+        double d = spot1.distanceFrom(spot2);
+        double a1;
+        double a2;
+        if (d < 3) {
+            if (spot1.isBrighter(spot2)) {
+                res = true;
+            } else {
+                res = false;
+            }
+        } else {
+            res = false;
+        }
+
+        return res;
+    }
+
+    private boolean canKeepSpot(Spot spot1, Spot spot2) {
+
+        if (spot1.distanceFrom(spot2) >= 3) {
+            return true;
+        }
+        if (spot1.getIntensity() > spot2.getIntensity()) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     private ImagePlus openImage(String filename) {
@@ -199,12 +275,10 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         try {
             ImagePlus[] imps = BF.openImagePlus(filename);
             imp = imps[0];
-        }
-        catch (FormatException e) {
+        } catch (FormatException e) {
             IJ.log("Can't open: " + filename + ". Bio-formats Format Exception");
             return null;
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             IJ.log("Can't open: " + filename + ". Java IO Exception");
             return null;
         }
@@ -232,12 +306,12 @@ public class FitSpotsStackPlugin implements Command, Previewable {
 
         double thres = projectedImp.getProcessor().getMinThreshold();
 
-        float[] pixels = (float[])projectedImp.getProcessor().getPixels();
+        float[] pixels = (float[]) projectedImp.getProcessor().getPixels();
         byte[] maskPixels = new byte[pixels.length];
 
         for (int i = 0; i < pixels.length; i++) {
             if (pixels[i] > thres) {
-                maskPixels[i] = (byte)(255 & 0xFF);
+                maskPixels[i] = (byte) (255 & 0xFF);
                 inDapiList.add(i);
             } else {
                 maskPixels[i] = 0;
@@ -260,16 +334,16 @@ public class FitSpotsStackPlugin implements Command, Previewable {
     private void writeheader() throws IOException {
 
         String header = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s\n",
-                                    "Filename", "Slice", "Baseline", "Amplitude","FitX",
-                                    "FitY", "StdDev", "ImageFitX", "ImageFitY", "StartX", "StartY", "InDapi",
-                                    "DapiSize", "CytoplasmSize");
+                "Filename", "Slice", "Baseline", "Amplitude", "FitX",
+                "FitY", "StdDev", "ImageFitX", "ImageFitY", "StartX", "StartY", "InDapi",
+                "DapiSize", "CytoplasmSize");
 
         writer.write(header);
 
     }
 
     private void writeSpots(List<Spot> spots, String filename, int slice, ImageProcessor ip)
-                            throws IOException {
+            throws IOException {
 
         for (Spot spot : spots) {
 
@@ -279,21 +353,20 @@ public class FitSpotsStackPlugin implements Command, Previewable {
             int y = spot.getYint();
             int w = ip.getWidth();
             int h = ip.getHeight();
-            int index = y*w + x;
+            int index = y * w + x;
 
             int inDapi;
             if (inDapiList.contains(index)) {
                 inDapi = 1;
-            }
-            else {
+            } else {
                 inDapi = 0;
 //                System.out.println("Cytoplasm");
             }
             String outString = String.format("%s, %5d, %10.2f, %10.2f, %10.2f, %10.2f, %10.4f, %10.2f, %10.2f, " +
-                                                "%10.2f, %10.2f, %5d, %10d, %10d\n",
-                                                filename, slice, p[4], p[0], p[1], p[2], p[3], spot.getImageFitX(),
-                                                spot.getImageFitY(), spot.getX(), spot.getY(), inDapi,
-                                                inDapiList.size(), w*h - inDapiList.size());
+                            "%10.2f, %10.2f, %5d, %10d, %10d\n",
+                    filename, slice, p[4], p[0], p[1], p[2], p[3], spot.getImageFitX(),
+                    spot.getImageFitY(), spot.getX(), spot.getY(), inDapi,
+                    inDapiList.size(), w * h - inDapiList.size());
 
             writer.write(outString);
 
@@ -315,8 +388,8 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         for (Spot s : spots) {
             double x = s.getX() + 0.0;
             double y = s.getY() + 0.0;
-            xpoints[roiIndex] = (float)x;
-            ypoints[roiIndex] = (float)y;
+            xpoints[roiIndex] = (float) x;
+            ypoints[roiIndex] = (float) y;
             roiIndex++;
         }
 
@@ -337,15 +410,14 @@ public class FitSpotsStackPlugin implements Command, Previewable {
             ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)));
             out = new DataOutputStream(new BufferedOutputStream(zos));
             RoiEncoder encoder = new RoiEncoder(out);
-            for (Roi roi: rois) {
+            for (Roi roi : rois) {
                 String label = roi.getName() + ".roi"; //" .roi";
                 zos.putNextEntry(new ZipEntry(label));
                 encoder.write(roi);
                 out.flush();
             }
             out.close();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
             return;
         }

@@ -5,6 +5,8 @@ package org.stowers.microscopy.spotanalysis;
  */
 
 import ij.ImagePlus;
+import ij.ImageStack;
+import ij.gui.Roi;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import jalgs.jfit.gridfit;
@@ -32,6 +34,7 @@ public class Spot  {
     double pixelWidth = 1.0;
     float[] pixels;
     ImageProcessor ip;
+    ImageStack stack;
 
     SpotPatch patch = null;
     float[] patchPixels;
@@ -71,7 +74,7 @@ public class Spot  {
         this.xyindex = y*ip.getWidth() + x;
         this.ip = ip;
 
-        this.intensity = ip.get(xyindex);
+        this.intensity = ip.getPixelValue(x, y);
 
         if ((x < patchSize/2 + 1) || (y < patchSize/2 + 1)) {
             canfit = false;
@@ -89,6 +92,10 @@ public class Spot  {
 //        }
         //showPatch();
 //        fitPatch();
+    }
+
+    public void     setStack(ImageStack stack) {
+        this.stack = stack;
     }
 
     public void setPixelWidth(double pw) {
@@ -110,7 +117,8 @@ public class Spot  {
     public double getIntensity() {
         return intensity;
     }
-    
+
+
     public void makePatch() {
 
         if (patchSize <= 0) {
@@ -118,12 +126,19 @@ public class Spot  {
             return;
         }
 
-        float[] ipixels =  (float[])(ip.convertToFloatProcessor().getPixels());
-
+        //float[] ipixels =  (float[])(ip.convertToFloatProcessor().getPixels());
+        float[][] ipixels = new float[3][stack.getWidth()*stack.getHeight()];
+        if (theZ > 1) {
+            ipixels[0] = (float[]) stack.getProcessor(theZ - 1).convertToFloatProcessor().getPixels();
+        }
+        ipixels[1] = (float[]) stack.getProcessor(theZ).convertToFloatProcessor().getPixels();
+        if (theZ < stack.getSize()) {
+            ipixels[2] = (float[]) stack.getProcessor(theZ + 1).convertToFloatProcessor().getPixels();
+        }
         int d = patchSize/2;
 
-        int w = ip.getWidth();
-        int h = ip.getHeight();
+        int w = stack.getWidth();
+        int h = stack.getHeight();
 
         int xmin = x - d;
         if (xmin < 0) xmin = 0;
@@ -151,7 +166,7 @@ public class Spot  {
         for (int j = ymin; j <= ymax; j++) {
             for (int i = xmin; i <= xmax; i++) {
                 index = j*w + i;
-                patchPixels[pindex] = ipixels[index];
+                patchPixels[pindex] = ipixels[0][index] + ipixels[1][index] + ipixels[2][index];
                 pindex++;
             }
         }
@@ -271,12 +286,29 @@ public class Spot  {
         return d;
     }
 
+    public boolean isBrighter(Spot otherspot) {
+
+        boolean res;
+        if (intensity > otherspot.getIntensity()) {
+            res = true;
+        } else {
+            res = false;
+        }
+        return res;
+
+    }
+
+
     public double getX() {
         return x;
     }
 
     public double getY() {
         return y;
+    }
+
+    public int getZ() {
+        return theZ;
     }
 
     public int getXint() {

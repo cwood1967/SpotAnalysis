@@ -46,6 +46,7 @@ public class SpotReader implements IReader {
         this(imp, tol, patchSize);
         this.imageFile = imageFile;
         this.theZ = theZ;
+        imp.setSlice(theZ);
 
     }
 
@@ -82,7 +83,7 @@ public class SpotReader implements IReader {
 
         ArrayList<Spot> spots = null;
 
-        FloatProcessor bip = (FloatProcessor)imp.getProcessor().duplicate();
+        FloatProcessor bip = (FloatProcessor)imp.getProcessor().convertToFloatProcessor().duplicate();
 
         GaussianBlur blur = new GaussianBlur();
         blur.blurFloat(bip, .5, .5, 0.0002);
@@ -123,6 +124,7 @@ public class SpotReader implements IReader {
             int y = i / width;
             if (pixels[i] != 0) {
                 Spot spot = new Spot(id, x, y, imp.getProcessor(), patchSize, theC, theZ);
+                spot.setStack(imp.getStack());
                 spot.setPixelWidth(pixelWidth);
                 spots.add(spot);
             }
