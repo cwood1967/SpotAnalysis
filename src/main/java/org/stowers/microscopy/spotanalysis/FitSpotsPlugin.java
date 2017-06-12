@@ -5,6 +5,7 @@ import ij.gui.PointRoi;
 import ij.io.Opener;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
+import ij.process.ImageProcessor;
 import loci.plugins.BF;
 import net.imagej.ImageJ;
 //import net.imagej.table.DefaultResultsTable;
@@ -34,6 +35,9 @@ public class FitSpotsPlugin implements Command, Previewable {
     @Parameter(type = ItemIO.INPUT)
     private ImagePlus imp;
 
+    protected ImagePlus workingImp;
+    protected ImageProcessor workingIp;
+
     @Parameter(label = "Size of fit region")
     int patchSize;
 
@@ -45,15 +49,22 @@ public class FitSpotsPlugin implements Command, Previewable {
 
 
         Roi roi = imp.getRoi();
+
         if (roi != null) {
             imp.saveRoi();
+            workingIp = imp.getProcessor().crop();
+            workingImp = new ImagePlus("Working Imp", workingIp);
+        } else {
+            workingImp = new ImagePlus("Working Imp", imp.getProcessor());
         }
-        SpotReader reader = new SpotReader(imp, tol, patchSize);
+
+
+        SpotReader reader = new SpotReader(workingImp, tol, patchSize);
         reader.setPixelWidth(1);
         reader.analyze();
         ArrayList<Spot> spots = reader.getSpotList();
 
-        System.out.println(spots.size());
+        System.out.println("Number of maxima found" + spots.size());
 
         int nn = 0;
         int nf = 0;

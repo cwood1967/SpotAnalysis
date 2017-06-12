@@ -94,7 +94,7 @@ public class Spot  {
 //        fitPatch();
     }
 
-    public void     setStack(ImageStack stack) {
+    public void  setStack(ImageStack stack) {
         this.stack = stack;
     }
 
@@ -126,19 +126,10 @@ public class Spot  {
             return;
         }
 
-        //float[] ipixels =  (float[])(ip.convertToFloatProcessor().getPixels());
-        float[][] ipixels = new float[3][stack.getWidth()*stack.getHeight()];
-        if (theZ > 1) {
-            ipixels[0] = (float[]) stack.getProcessor(theZ - 1).convertToFloatProcessor().getPixels();
-        }
-        ipixels[1] = (float[]) stack.getProcessor(theZ).convertToFloatProcessor().getPixels();
-        if (theZ < stack.getSize()) {
-            ipixels[2] = (float[]) stack.getProcessor(theZ + 1).convertToFloatProcessor().getPixels();
-        }
         int d = patchSize/2;
 
-        int w = stack.getWidth();
-        int h = stack.getHeight();
+        int w = ip.getWidth();
+        int h = ip.getHeight();
 
         int xmin = x - d;
         if (xmin < 0) xmin = 0;
@@ -159,18 +150,37 @@ public class Spot  {
         }
 
         int n = 2*d + 1;
+        float[] ipixels = null;
+        patchPixels = new float[n * n];
+        if (stack.getSize() == 1) {
+            ipixels =  (float[])(ip.convertToFloatProcessor().getPixels());
+        }
+        else {
+            float[][] ipixels3 = new float[3][stack.getWidth() * stack.getHeight()];
+            if (theZ > 1) {
+                ipixels3[0] = (float[]) stack.getProcessor(theZ - 1).convertToFloatProcessor().getPixels();
+            }
+            ipixels3[1] = (float[]) stack.getProcessor(theZ).convertToFloatProcessor().getPixels();
+            if (theZ < stack.getSize()) {
+                ipixels3[2] = (float[]) stack.getProcessor(theZ + 1).convertToFloatProcessor().getPixels();
+            }
 
-        int index;
-        patchPixels = new float[n*n];
-        int pindex = 0;
-        for (int j = ymin; j <= ymax; j++) {
-            for (int i = xmin; i <= xmax; i++) {
-                index = j*w + i;
-                patchPixels[pindex] = ipixels[0][index] + ipixels[1][index] + ipixels[2][index];
-                pindex++;
+            for (int i = 0; i < ipixels3[0].length; i++) {
+                ipixels[i] = ipixels3[0][i] + ipixels3[1][i] + ipixels3[2][i];
             }
         }
 
+        int index;
+
+        //ipixels = new float[ip.getWidth()*ip.getHeight()];
+        int pindex = 0;
+        for (int j = ymin; j <= ymax; j++) {
+            for (int i = xmin; i <= xmax; i++) {
+                index = j * w + i;
+                patchPixels[pindex] = ipixels[index];
+                pindex++;
+            }
+        }
         patch = new SpotPatch(n, n, patchPixels);
 
     }
@@ -186,10 +196,10 @@ public class Spot  {
             makePatch();
         }
 
-        double base = patch.getStatistics().min;
+        double base = patch.getStatistics().mean;
         double amp = patch.getStatistics().max - base;
 //        double amp = patch.get((int)patch.getWidth()/2, (int)patch.getHeight()/2);
-        double s = patch.getWidth()/8.;
+        double s = patch.getWidth()/6.;
         double xp = Math.floor(patch.getWidth()/2.);
         double yp = Math.floor(patch.getHeight()/2.);
 
@@ -218,10 +228,10 @@ public class Spot  {
         p[3] = s;
         p[4] = base;
 
-//        for (int i = 0; i < p.length; i++) {
-//            System.out.print(p[i] + " ");
-//        }
-//        System.out.println();
+        for (int i = 0; i < p.length; i++) {
+            System.out.print(p[i] + " ");
+        }
+        System.out.println();
 
         double[] data = patch.getDoublePixels();
 
@@ -232,8 +242,8 @@ public class Spot  {
                 .model(fit)
                 .target(data)
                 .lazyEvaluation(false)
-                .maxEvaluations(10000)
-                .maxIterations(10000)
+                .maxEvaluations(20000)
+                .maxIterations(20000)
                 .build();
 
 

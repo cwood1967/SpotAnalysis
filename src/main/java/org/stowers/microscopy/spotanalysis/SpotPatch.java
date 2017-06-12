@@ -42,4 +42,18 @@ public class SpotPatch extends FloatProcessor {
         return res;
     }
 
+//    public double[] fitGuassian() {
+//
+//        double base = getStatistics().min;
+//        double amp = getStatistics().max - base;
+//        double s = getWidth()/8.;
+//        double xp = Math.floor(getWidth()/2.);
+//        double yp = Math.floor(getHeight()/2.);
+//
+//        double xc = getStatistics().xCenterOfMass;
+//        double yc = getStatistics().yCenterOfMass;
+//
+//
+//    }
+
 }
