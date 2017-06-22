@@ -20,6 +20,7 @@ import org.apache.commons.math3.util.FastMath;
 
 import java.util.ArrayList;
 
+
 public class Spot  {
 
     int id;
