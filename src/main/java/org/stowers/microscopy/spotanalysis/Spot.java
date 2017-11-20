@@ -153,10 +153,10 @@ public class Spot  {
         int n = 2*d + 1;
         float[] ipixels = null;
         patchPixels = new float[n * n];
-        if (stack.getSize() == 1) {
+        if ((stack == null) || (stack.getSize() == 1)) {
             ipixels =  (float[])(ip.convertToFloatProcessor().getPixels());
-        }
-        else {
+        } else {
+            ipixels = new float[ip.getWidth()*ip.getHeight()];
             float[][] ipixels3 = new float[3][stack.getWidth() * stack.getHeight()];
             if (theZ > 1) {
                 ipixels3[0] = (float[]) stack.getProcessor(theZ - 1).convertToFloatProcessor().getPixels();

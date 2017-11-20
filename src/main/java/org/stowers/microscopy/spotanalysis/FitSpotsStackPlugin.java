@@ -30,6 +30,7 @@ import org.scijava.command.Previewable;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
+import java.awt.*;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -53,6 +54,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
     @Parameter(label = "Pick a directory", style = "directory")
     File outputDirectory;
 
+
     File[] imageFiles;
 
     @Parameter(label = "Size of fit region")
@@ -70,7 +72,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
     int dapiChannel = 3;
 
     ArrayList<Roi> roiList;
-    String outpath = "/Users/cjw/Desktop/Out/";
+    String outpath = "";
 
     BufferedWriter writer = null;
     AutoThresholder.Method method;
@@ -125,7 +127,7 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         for (int i = 0; i < imageFiles.length; i++) {
             String filename = imageFiles[i].getAbsolutePath();
             IJ.log("Working on " + filename);
-            if (!filename.endsWith("ome.tiff")) continue;
+//            if (!filename.endsWith("ome.tiff")) continue;
             processImage(filename);
 
         }
@@ -222,8 +224,9 @@ public class FitSpotsStackPlugin implements Command, Previewable {
             markSpots(gimp, fs, i + 1);
 
             int lastDotPos = filename.lastIndexOf(".");
-            int lastSpace = filename.lastIndexOf(" ");
-            String numStr = filename.substring(lastSpace + 1, lastDotPos);
+            int lastSlash = filename.lastIndexOf("/");
+            String numStr = filename.substring(lastSlash + 1, lastDotPos);
+            numStr = numStr.replace(" ", "_");
             writeRoiZip(roiList, outpath + numStr + "-rois.zip");
         }
 
@@ -394,9 +397,11 @@ public class FitSpotsStackPlugin implements Command, Previewable {
         }
 
         PointRoi proi = new PointRoi(xpoints, ypoints);
-        proi.setSize(1);
+        proi.setSize(4);
         proi.setPointType(3);
         proi.setPosition(slice);
+        proi.setStrokeColor(new Color(255, 0 ,0));
+        proi.setStrokeWidth(1);
         String strSlice = String.format("%03d", slice);
         String name = strSlice + "-Fit tol = " + tol;
         proi.setName(name);
